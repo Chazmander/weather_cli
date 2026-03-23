@@ -1,3 +1,4 @@
+from datetime import datetime, date, timedelta
 import requests
 
 #ask for city
@@ -13,65 +14,84 @@ if "results" not in geo_data or len(geo_data["results"]) == 0:
     exit()
 city_lat = geo_data["results"][0]["latitude"]
 city_long = geo_data["results"][0]["longitude"]
+admin1 = geo_data["results"][0]["admin1"]
+ 
+#fetching today and tomorrows date
+today = date.today()
+tomorrow = today + timedelta(days=1)
 
 #send coords to api
 weather_url = "https://api.open-meteo.com/v1/forecast"
 params = {
     "latitude": city_lat,
     "longitude": city_long,
-    "current_weather": True,
     "temperature_unit": "fahrenheit",
-    "hourly": "temperature_2m,weathercode"}
+    "hourly": "temperature_2m,weathercode",
+    "start_date": today.isoformat(),
+    "end_date" : tomorrow.isoformat()}
 
 weather_response = requests.get(weather_url, params=params)
 print(weather_response)
 weather_data = weather_response.json()
 #pull data from json
-temp = weather_data["current_weather"]["temperature"]
-weather_code = weather_data["current_weather"]["weathercode"]
+temps = weather_data["hourly"]["temperature_2m"]
+codes = weather_data["hourly"]["weathercode"]
+times = weather_data["hourly"]["time"]
+
+#finding current time in times[]
+now = datetime.now()
+start_index = 0
+for index in range(len(times)):
+    time_dt = datetime.fromisoformat(times[index])
+    if time_dt >= now:
+        start_index = index
+        break
+
 #weathercode table
 weather_codes = {
-    0: "Clear sky ☀️",
-
-    1: "Mainly clear 🌤️",
-    2: "Partly cloudy ⛅",
-    3: "Overcast ☁️",
-
-    45: "Fog 🌫️",
-    48: "Depositing rime fog 🌫️",
-
-    51: "Light drizzle 🌦️",
-    53: "Moderate drizzle 🌦️",
-    55: "Dense drizzle 🌧️",
-
-    56: "Light freezing drizzle 🧊🌧️",
-    57: "Dense freezing drizzle 🧊🌧️",
-
-    61: "Slight rain 🌧️",
-    63: "Moderate rain 🌧️",
-    65: "Heavy rain 🌧️",
-
-    66: "Light freezing rain 🧊🌧️",
-    67: "Heavy freezing rain 🧊🌧️",
-
-    71: "Slight snow ❄️",
-    73: "Moderate snow ❄️",
-    75: "Heavy snow ❄️",
-
-    77: "Snow grains ❄️",
-
-    80: "Slight rain showers 🌦️",
-    81: "Moderate rain showers 🌧️",
-    82: "Violent rain showers ⛈️",
-
-    85: "Slight snow showers ❄️",
-    86: "Heavy snow showers ❄️",
-
-    95: "Thunderstorm ⛈️",
-    96: "Thunderstorm with slight hail ⛈️🧊",
-    99: "Thunderstorm with heavy hail ⛈️🧊"
+    0: "clear skies",
+    1: "mostly clear skies",
+    2: "partly cloudy skies",
+    3: "overcast clouds",
+    45: "fog",
+    48: "fog",
+    51: "light drizzle",
+    53: "moderate drizzle",
+    55: "dense drizzle",
+    56: "light freezing drizzle",
+    57: "dense freezing drizzle",
+    61: "light rain",
+    63: "moderate rain",
+    65: "heavy rain",
+    66: "light freezing rain",
+    67: "heavy freezing rain",
+    71: "light snow",
+    73: "moderate snow",
+    75: "heavy snow",
+    77: "snow grains",
+    80: "light rain showers",
+    81: "moderate rain showers",
+    82: "heavy rain showers",
+    85: "light snow showers",
+    86: "heavy snow showers",
+    95: "thunderstorms",
+    96: "thunderstorms and hail",
+    99: "severe thunderstorms and hail"
 }
+weather_code = codes[start_index]
 condition = weather_codes[weather_code]
+temp = temps[start_index]
 
 #display to user
-print(f"The current weather in {city} is {temp} degrees and {condition}")
+print(f"The current weather in {city}, {admin1} is {temp}°F with {condition}")
+hours_to_show = 5
+print(f"\nForecast for next {hours_to_show} hours:")
+for hour in range(hours_to_show):
+    i = start_index + hour
+    time_str = times[i]
+    temp = temps[i]
+    code = codes[i]
+    condition = weather_codes[code]
+    time_dt = datetime.fromisoformat(time_str)
+    pretty_time = time_dt.strftime("%I %p").lstrip("0")
+    print(f"{pretty_time}: {temp}°F with {condition}")
